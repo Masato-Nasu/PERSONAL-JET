@@ -1,8 +1,8 @@
 const prefix='personal-jet-';
-const version=prefix+'3';
+const version=prefix+'4';
 const assets=[
-  './index.html','./style.css?v=touch-hold','./app.js?v=touch-hold',
-  './physics.js','./physics.js?v=counterfire','./world.js','./gun-mounts.js',
+  './index.html','./style.css?v=touch-hold','./app.js?v=lateral-roll',
+  './physics.js','./physics.js?v=counterfire','./physics.js?v=lateral-roll','./world.js','./gun-mounts.js',
   './combat.js?v=missile-trail','./combat-view.js?v=missile-trail',
   './cockpit-view.js','./canopy-panes.js','./jet-finish.js?v=mirror-canopy',
   './jet-hardware.js?v=wing-guns','./lite.js?v=wing-guns',

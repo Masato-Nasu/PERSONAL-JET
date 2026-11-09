@@ -52,7 +52,7 @@
 </div>
 <button id="brake">ブレーキ</button>
 <div id="weapons" hidden><button id="gun">機関銃 <kbd>SPACE</kbd></button><button id="missile">ミサイル <b id="ammo">4</b> <kbd>X</kbd></button></div>
-<div id="stick" role="group" aria-label="操縦スティック。上で下降、下で上昇、左右で旋回。2回タップで左右はロール、下はループ。">
+<div id="stick" role="group" aria-label="操縦スティック。上で下降、下で上昇、左右で旋回。左右を2回タップすると、その方向に移動しながらロール。下を2回タップするとループ。">
 <i aria-hidden="true"></i>
 <span class="stick-up">↑ 下降</span><span class="stick-down">↓ 上昇 <small>×2 ループ</small></span>
 <span class="stick-left">◀<small>×2</small></span><span class="stick-right">▶<small>×2</small></span>
@@ -60,7 +60,7 @@
 <div class="flighthelp" id="manual-help">W / S 推力　↑ 下降　↓ 上昇　← / → 旋回　SPACE ブレーキ</div>
 </section>
 <noscript>このフライトゲームにはJavaScriptが必要です。</noscript>
-<script type="module" src="app.js?v=touch-hold"></script>
+<script type="module" src="app.js?v=lateral-roll"></script>
 <script>
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(error=>console.warn('Offline setup failed',error));

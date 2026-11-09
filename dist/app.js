@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
-import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=counterfire';
+import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=lateral-roll';
 import {createWorld,heightAt} from './world.js';
 import {createLite} from './lite.js?v=wing-guns';
 import {initialCombatFlight,startCombat,advanceCombat} from './combat.js?v=missile-trail';
