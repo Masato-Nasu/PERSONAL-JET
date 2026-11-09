@@ -14,7 +14,7 @@ const el=id=>document.getElementById(id);
 const buttons={combat:el('combat-start'),gun:el('gun'),missile:el('missile'),start:el('start'),demo:el('demo'),camera:el('camera'),reset:el('reset'),home:el('home'),brake:el('brake')};
 const power=el('power'), stick=el('stick'), mapCanvas=el('map').querySelector('canvas');
 const map=mapCanvas.getContext('2d');
-const keys=new Set(), touch={x:0,y:0,id:null,brake:false,press:null,lastTap:null};
+const keys=new Set(), touch={x:0,y:0,id:null,brake:null,press:null,lastTap:null};
 let maneuverNotice=null;
 const scene=new T.Scene();
 const camera=new T.PerspectiveCamera(58,1,.13,15000);
@@ -158,7 +158,7 @@ function resetTouch(){
   weapons.gun=false;weapons.missile=false;weapons.gunTap=false;weapons.missileTap=false;
   const pointer=touch.id;
   updateStick(0,0,0);
-  touch.id=null;touch.brake=false;touch.press=null;touch.lastTap=null;
+  touch.id=null;touch.brake=null;touch.press=null;touch.lastTap=null;
   if(pointer!==null&&stick.hasPointerCapture?.(pointer))stick.releasePointerCapture(pointer);
 }
 function setCockpit(value){
@@ -314,7 +314,7 @@ function controls(dt){
   if(keys.has('KeyS'))flight.throttle=clamp(flight.throttle-dt*.67,0,1);
   const pitch=clamp(Number(keys.has('ArrowDown'))-Number(keys.has('ArrowUp'))+touch.y,-1,1);
   const roll=clamp(Number(keys.has('ArrowRight'))-Number(keys.has('ArrowLeft'))+touch.x,-1,1);
-  const braking=mode==='manual'&&(keys.has('Space')||touch.brake);
+  const braking=mode==='manual'&&(keys.has('Space')||touch.brake!==null);
   advance(flight,{pitch,roll,braking,combat:!!battle},dt,heightAt);
   if(battle){
     advanceCombat(battle,flight,{gun:keys.has('Space')||weapons.gun||weapons.gunTap,
@@ -464,7 +464,11 @@ function buttonEvents(){
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){keys.clear();resetTouch();}
   });
-  stick.addEventListener('contextmenu',event=>event.preventDefault());
+  for(const name of ['contextmenu','selectstart']){
+    document.addEventListener(name,event=>{
+      if(event.target.closest?.('#intro button,#flight :is(button,#stick,#power)'))event.preventDefault();
+    });
+  }
   stick.addEventListener('pointerdown',event=>{
     if((mode!=='manual'&&mode!=='combat')||touch.id!==null||event.button!==0)return;
     event.preventDefault();
@@ -492,13 +496,22 @@ function buttonEvents(){
   for(const name of ['gun','missile']){
     const button=buttons[name];
     button.onpointerdown=event=>{
+      if(event.button!==0)return;
+      event.preventDefault();
       weapons[name]=true;weapons[name+'Tap']=true;button.setPointerCapture(event.pointerId);
     };
     button.onpointerup=button.onpointercancel=button.onlostpointercapture=()=>{weapons[name]=false;};
     button.onclick=event=>{if(event.detail===0)weapons[name+'Tap']=true;};
   }
-  buttons.brake.onpointerdown=event=>{touch.brake=true;buttons.brake.setPointerCapture(event.pointerId);};
-  buttons.brake.onpointerup=buttons.brake.onpointercancel=buttons.brake.onlostpointercapture=()=>{touch.brake=false;};
+  buttons.brake.onpointerdown=event=>{
+    if(event.button!==0||touch.brake!==null)return;
+    event.preventDefault();
+    touch.brake=event.pointerId;
+    buttons.brake.setPointerCapture(event.pointerId);
+  };
+  buttons.brake.onpointerup=buttons.brake.onpointercancel=buttons.brake.onlostpointercapture=event=>{
+    if(event.pointerId===touch.brake)touch.brake=null;
+  };
 }
 async function setup(){
   const canvas=document.createElement('canvas');

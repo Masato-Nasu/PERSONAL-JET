@@ -127,3 +127,9 @@ body.combat #gear-state{display:none}
 .portrait-intro footer{bottom:44px;padding:7px 0;font-size:8px;letter-spacing:.12em}
 .portrait-intro.hud-short .welcome{margin-bottom:48px}
 .portrait-intro.hud-short footer{display:none}
+
+#intro button,#flight :is(button,#stick,#power){
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
