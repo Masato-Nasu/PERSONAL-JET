@@ -1,7 +1,7 @@
 const prefix='personal-jet-';
-const version=prefix+'5';
+const version=prefix+'6';
 const assets=[
-  './index.html','./style.css?v=touch-hold','./app.js?v=side-roll',
+  './index.html','./style.css?v=touch-hold','./app.js?v=hold-roll-line',
   './physics.js','./physics.js?v=counterfire','./physics.js?v=side-roll','./world.js','./gun-mounts.js',
   './combat.js?v=missile-trail','./combat-view.js?v=missile-trail',
   './cockpit-view.js','./canopy-panes.js','./jet-finish.js?v=mirror-canopy',

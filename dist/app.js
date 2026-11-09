@@ -26,9 +26,10 @@ const effects=combatView(el('combat-view'));
 let battle=null;
 const headingRotation=new T.Quaternion();
 const yAxis=new T.Vector3(0,1,0);
+const chaseProjection=new T.Vector3();
 const modelPosition=new T.Vector3(), eye=new T.Vector3(), focus=new T.Vector3(), desired=new T.Vector3();
 let renderWorld, renderer, lite, mode='intro', flight=initialFlight(), loaded=false, cockpit=false, elapsed=0;
-let audio, lastText='', lastHud=0;
+let audio, lastText='', lastHud=0, chaseRollScreen=null;
 const mobile=navigator.maxTouchPoints>0||matchMedia('(any-pointer: coarse)').matches;
 let viewWidth=innerWidth,viewHeight=innerHeight, portraitIntro=false;
 
@@ -164,7 +165,10 @@ function resetTouch(){
 function setCockpit(value){
   const changed=cockpit!==value;
   cockpit=value;
-  if(changed&&loaded)resize();
+  if(changed){
+    chaseRollScreen=null;
+    if(loaded)resize();
+  }
   document.body.classList.toggle('cockpit',value);
   buttons.camera.title=value?'機外視点 (C)':'操縦席視点 (C)';
   buttons.camera.setAttribute('aria-pressed',String(value));
@@ -174,6 +178,7 @@ function begin(next){
   keys.clear();resetTouch();setCockpit(false);elapsed=0;mode=next;maneuverNotice=null;
   const isCombat=next==='combat', canPilot=next==='manual'||isCombat;
   flight=isCombat?initialCombatFlight(initialFlight()):initialFlight();
+  chaseRollScreen=null;
   battle=isCombat?startCombat(flight):null;
   document.body.classList.toggle('playing',next!=='intro');
   document.body.classList.toggle('combat',isCombat);
@@ -315,7 +320,22 @@ function controls(dt){
   const pitch=clamp(Number(keys.has('ArrowDown'))-Number(keys.has('ArrowUp'))+touch.y,-1,1);
   const roll=clamp(Number(keys.has('ArrowRight'))-Number(keys.has('ArrowLeft'))+touch.x,-1,1);
   const braking=mode==='manual'&&(keys.has('Space')||touch.brake!==null);
+  const maneuver=flight.maneuver;
+  const side=maneuver?.action==='right'?1:maneuver?.action==='left'?-1:0;
+  const previousAngle=maneuver?.angle??0;
+  const {x,z}=flight;
   advance(flight,{pitch,roll,braking,combat:!!battle},dt,heightAt);
+  if(side){
+    const fraction=(maneuver.angle-previousAngle)/(2*Math.PI);
+    if(chaseRollScreen!==null)chaseRollScreen=clamp(chaseRollScreen+side*.23*fraction,-.38,.38);
+    if(!cockpit){
+      // Carry the camera sideways with the jet so chase lag cannot pull it back across the frame.
+      const rightX=Math.cos(flight.heading),rightZ=Math.sin(flight.heading);
+      const shift=(flight.x-x)*rightX+(flight.z-z)*rightZ;
+      camera.position.x+=rightX*shift;
+      camera.position.z+=rightZ*shift;
+    }
+  }else if(flight.phase!=='air')chaseRollScreen=null;
   if(battle){
     advanceCombat(battle,flight,{gun:keys.has('Space')||weapons.gun||weapons.gunTap,
       missile:keys.has('KeyX')||weapons.missile||weapons.missileTap},dt,heightAt);
@@ -362,12 +382,17 @@ function visual(shadow,time,dt){
     desired.set(chaseX,grounded?3.7:5.4,Math.max(grounded?13.5:15.6,framingDistance)).applyQuaternion(headingRotation).add(modelPosition);
     if(camera.position.distanceTo(desired)>29||battle?.destruction?.age<.08)camera.position.copy(desired);
     camera.position.lerp(desired,1-Math.exp(-5.6*dt));
-    const maneuver=displayed.maneuver;
-    const side=maneuver?.action==='right'?1:maneuver?.action==='left'?-1:0;
-    // During a roll, let the aircraft cross the frame before centering it again.
-    const rollLook=side===0?0:side*3.2*Math.sin(maneuver.angle*.5);
-    focus.set(-rollLook,grounded?.70:1.18,grounded?-9:-10.5).applyQuaternion(headingRotation).add(modelPosition);
+    focus.set(0,grounded?.70:1.18,grounded?-9:-10.5).applyQuaternion(headingRotation).add(modelPosition);
     camera.up.set(0,1,0);camera.lookAt(focus);
+    if(chaseRollScreen!==null){
+      camera.updateMatrixWorld();
+      const local=chaseProjection.copy(modelPosition).applyMatrix4(camera.matrixWorldInverse);
+      if(local.z<0){
+        const bearing=Math.atan2(local.x,-local.z);
+        const screenAngle=Math.atan(chaseRollScreen/camera.projectionMatrix.elements[0]);
+        camera.rotateY(screenAngle-bearing);
+      }
+    }
   }
   if(renderer){renderWorld(camera,time);renderer.render(scene,camera);}
   else lite.render(camera,airframe,displayed,time);
@@ -402,6 +427,10 @@ function maneuverLabel(action){
 function triggerManeuver(action){
   if(!action||flight.phase!=='air'||flight.maneuver||battle?.result)return;
   if(startManeuver(flight,action,heightAt)){
+    if(action!=='loop'&&!cockpit&&chaseRollScreen===null){
+      camera.updateMatrixWorld();
+      chaseRollScreen=clamp(chaseProjection.copy(modelPosition).project(camera).x,-.38,.38);
+    }
     maneuverNotice={text:maneuverLabel(action)+'完了',until:performance.now()+(action==='loop'?6400:2800)};
   }else{
     maneuverNotice={text:action==='loop'?'ループには速度と高度が必要です':'ロールには高度が必要です',
