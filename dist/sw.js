@@ -1,5 +1,5 @@
 const prefix='personal-jet-';
-const version=prefix+'1';
+const version=prefix+'2';
 const assets=[
   './index.html','./style.css?v=fit-controls-2','./app.js?v=missile-trail',
   './physics.js','./physics.js?v=counterfire','./world.js','./gun-mounts.js',

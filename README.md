@@ -1,4 +1,4 @@
-# PERSONAL JET — Coastal Intercept
+# FIGHTER JET — Coastal Intercept
 
 那須雅人のオリジナル機体で遊べる、ブラウザ向けフライトシミュレーター＆空戦ゲームです。
 
