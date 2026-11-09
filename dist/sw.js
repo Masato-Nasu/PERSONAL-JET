@@ -1,8 +1,8 @@
 const prefix='personal-jet-';
-const version=prefix+'4';
+const version=prefix+'5';
 const assets=[
-  './index.html','./style.css?v=touch-hold','./app.js?v=lateral-roll',
-  './physics.js','./physics.js?v=counterfire','./physics.js?v=lateral-roll','./world.js','./gun-mounts.js',
+  './index.html','./style.css?v=touch-hold','./app.js?v=side-roll',
+  './physics.js','./physics.js?v=counterfire','./physics.js?v=side-roll','./world.js','./gun-mounts.js',
   './combat.js?v=missile-trail','./combat-view.js?v=missile-trail',
   './cockpit-view.js','./canopy-panes.js','./jet-finish.js?v=mirror-canopy',
   './jet-hardware.js?v=wing-guns','./lite.js?v=wing-guns',
@@ -19,7 +19,7 @@ const savedAssets=new Set(assets.map(inScope));
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(version).then(cache=>cache.addAll(
     [...savedAssets].map(url=>new Request(url,{cache:'reload'}))
-  )));
+  )).then(()=>self.skipWaiting()));
 });
 self.addEventListener('activate',event=>{
   event.waitUntil(caches.keys().then(keys=>Promise.all(
@@ -30,7 +30,7 @@ self.addEventListener('fetch',event=>{
   const {request}=event;
   if(request.method!=='GET')return;
   if(request.mode==='navigate'&&(request.url===inScope('./')||request.url===inScope('./index.html'))){
-    event.respondWith(fetch(request).catch(()=>caches.open(version).then(cache=>cache.match(inScope('./index.html')))));
+    event.respondWith(fetch(request,{cache:'no-cache'}).catch(()=>caches.open(version).then(cache=>cache.match(inScope('./index.html')))));
   }else if(savedAssets.has(request.url)){
     event.respondWith(caches.open(version).then(cache=>cache.match(request)).then(saved=>saved??fetch(request)));
   }

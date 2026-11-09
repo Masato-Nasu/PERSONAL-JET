@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
-import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=lateral-roll';
+import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=side-roll';
 import {createWorld,heightAt} from './world.js';
 import {createLite} from './lite.js?v=wing-guns';
 import {initialCombatFlight,startCombat,advanceCombat} from './combat.js?v=missile-trail';
@@ -362,7 +362,11 @@ function visual(shadow,time,dt){
     desired.set(chaseX,grounded?3.7:5.4,Math.max(grounded?13.5:15.6,framingDistance)).applyQuaternion(headingRotation).add(modelPosition);
     if(camera.position.distanceTo(desired)>29||battle?.destruction?.age<.08)camera.position.copy(desired);
     camera.position.lerp(desired,1-Math.exp(-5.6*dt));
-    focus.set(0,grounded?.70:1.18,grounded?-9:-10.5).applyQuaternion(headingRotation).add(modelPosition);
+    const maneuver=displayed.maneuver;
+    const side=maneuver?.action==='right'?1:maneuver?.action==='left'?-1:0;
+    // During a roll, let the aircraft cross the frame before centering it again.
+    const rollLook=side===0?0:side*3.2*Math.sin(maneuver.angle*.5);
+    focus.set(-rollLook,grounded?.70:1.18,grounded?-9:-10.5).applyQuaternion(headingRotation).add(modelPosition);
     camera.up.set(0,1,0);camera.lookAt(focus);
   }
   if(renderer){renderWorld(camera,time);renderer.render(scene,camera);}

@@ -43,15 +43,15 @@ function advanceManeuver(flight,dt,groundAt) {
     maneuver.time=Math.min(rollDuration,maneuver.time+dt);
     const progress=smooth(0,rollDuration,maneuver.time);
     const side=maneuver.action==='left'?-1:1;
-    const turn=side*2*Math.PI;
-    flight.bank=maneuver.bank+(turn-maneuver.bank)*progress;
+    maneuver.angle=progress*2*Math.PI;
+    flight.bank=maneuver.bank*(1-progress)+side*maneuver.angle;
     flight.pitch=maneuver.pitch*(1-progress);
     flight.vertical=approach(flight.vertical,0,4,dt);
     const forward=flight.speed*Math.cos(flight.pitch)*dt;
-    const lateral=side*maneuver.speed*.36*(progress-previous);
+    const lateral=side*maneuver.speed*.48*(progress-previous);
     const sinHeading=Math.sin(flight.heading),cosHeading=Math.cos(flight.heading);
     flight.x+=sinHeading*forward+cosHeading*lateral;
-    flight.z-=cosHeading*forward-sinHeading*lateral;
+    flight.z+=sinHeading*lateral-cosHeading*forward;
     flight.y+=flight.vertical*dt;
     complete=maneuver.time>=rollDuration;
   }
