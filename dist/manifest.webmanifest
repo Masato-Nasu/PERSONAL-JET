@@ -1,0 +1,16 @@
+{
+  "id": "./",
+  "name": "PERSONAL JET — Coastal Intercept",
+  "short_name": "PERSONAL JET",
+  "description": "オリジナル機体で離着陸、自由飛行、空戦を楽しむ3Dフライトゲーム。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101f2a",
+  "theme_color": "#0f1e28",
+  "icons": [
+    {"src": "icons/personal-jet-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/personal-jet-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
