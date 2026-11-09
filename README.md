@@ -1,2 +1,31 @@
-# PERSONAL-JET
-PERSONAL JET — Coastal Intercept. A browser flight simulator and aerial combat game featuring an original aircraft by Masato Nasu.
+# PERSONAL JET — Coastal Intercept
+
+那須雅人のオリジナル機体で遊べる、ブラウザ向けフライトシミュレーター＆空戦ゲームです。
+
+[ブラウザで遊ぶ](https://personal-jet-flight-nasu.sunny-seed-0354.chatgpt.site/)
+
+- **シューティング** — 海上で敵機と交戦。機関銃と誘導ミサイルを使用できます。
+- **自由飛行** — 滑走路から離陸し、島の周囲を飛んで着陸できます。
+- **自動デモ** — 離陸から着陸まで自動で飛行します。
+
+## 操作
+
+| 操作 | スマートフォン | PC |
+| --- | --- | --- |
+| 上昇 / 下降 | スティックを下 / 上へ | ↓ / ↑ |
+| 旋回 | スティックを左右へ | ← / → |
+| 推力 | スロットルを操作 | W / S |
+| ロール / ループ | 左右 / 下を2回タップ | 画面のスティックを使用 |
+| 機関銃 / ミサイル | 各ボタンをタップ | Space / X |
+| 視点切り替え | 視点ボタン | C |
+
+## ローカル実行
+
+```sh
+python3 -m http.server 8000 --directory dist
+```
+
+ブラウザで `http://localhost:8000/` を開いてください。ビルドは不要です。
+
+機体デザイン・3Dモデル — Masato Nasu  
+Three.js のライセンスは [dist/vendor/THREE-LICENSE.txt](dist/vendor/THREE-LICENSE.txt) に記載しています。
