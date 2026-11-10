@@ -4,7 +4,7 @@ import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,st
 import {createWorld,heightAt} from './world.js';
 import {carrierDeck,carrierSurfaces,deckHeight,initialCarrierFlight} from './carrier.js';
 import {createLite} from './lite.js?v=carrier-deck';
-import {initialCombatFlight,startCombat,advanceCombat} from './combat.js?v=carrier-sortie';
+import {initialCombatFlight,startCombat,advanceCombat} from './combat.js?v=carrier-formation';
 import {combatView} from './combat-view.js?v=missile-marker';
 import {jetFinishMaterial,loadJetOcclusion} from './jet-finish.js?v=mirror-canopy';
 
@@ -198,6 +198,7 @@ function setCockpit(value){
 function syncCombatHud(){
   const active=!!battle, isCarrier=mode==='carrier';
   document.body.classList.toggle('combat',active);
+  el('wave-label').textContent=isCarrier?'ENEMY':'WAVE';
   el('combat-view').hidden=!active;el('combat-info').hidden=!active;el('weapons').hidden=!active;
   buttons.brake.hidden=active||(mode!=='manual'&&!isCarrier);
   el('manual-help').textContent=active?'SPACE 機関銃　X ミサイル　矢印キー 操縦　W / S 推力':'W / S 推力　↑ 下降　↓ 上昇　← / → 旋回　SPACE ブレーキ';
@@ -372,7 +373,9 @@ function hud(time){
   if(text!==lastText){el('status').textContent=text;lastText=text;}
   updateThrottle();
   if(battle){
-    el('wave').textContent=battle.wave+' / '+battle.waves;
+    el('wave').textContent=mode==='carrier'
+      ?battle.enemies.filter(e=>e.hp>0).length+' / '+battle.enemies.length
+      :battle.wave+' / '+battle.waves;
     el('score').textContent=String(battle.score).padStart(4,'0');
     el('shield').textContent=battle.shield+'%';
     el('ammo').textContent=battle.ammo;
@@ -383,7 +386,7 @@ function hud(time){
 }
 function updateCarrierMission(){
   if(carrierLeg==='launch'&&flight.phase==='air'&&flight.y-carrierDeck.level-rideHeight(flight)>=interceptHeight){
-    battle=startCombat(flight,{waves:1,awaitMissiles:true});
+    battle=startCombat(flight,{waves:1,initialEnemies:8,awaitMissiles:true});
     carrierLeg='intercept';
   }else if(carrierLeg==='intercept'&&battle.victory){
     battle=null;

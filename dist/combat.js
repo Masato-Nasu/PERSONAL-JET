@@ -25,7 +25,7 @@ export function initialCombatFlight(initial){
   return {...initial,x:-650,y:295,z:440,heading:-.48,speed:92,throttle:.72,phase:'air',hasFlown:true,gear:0,departure:false};
 }
 function addWave(state,f){
-  const count=state.wave+1, dir=forward(f), across=right(f), center=position(f);
+  const count=state.initialEnemies+state.wave-1, dir=forward(f), across=right(f), center=position(f);
   state.enemies=Array.from({length:count},(_,i)=>{
     const side=i%2===0?-1:1;
     // Keep the first contact visible. A second drone starts outside the player's forward view.
@@ -43,8 +43,8 @@ function addWave(state,f){
   });
   state.guide=state.enemies[0];
 }
-export function startCombat(f,{waves=FINAL_WAVE,awaitMissiles=false}={}){
-  const state={wave:1,waves,awaitMissiles,victory:false,score:0,shield:100,ammo:MAX_MISSILES,elapsed:0,gunSide:0,gunWait:0,missileWait:0,
+export function startCombat(f,{waves=FINAL_WAVE,initialEnemies=2,awaitMissiles=false}={}){
+  const state={wave:1,waves,initialEnemies,awaitMissiles,victory:false,score:0,shield:100,ammo:MAX_MISSILES,elapsed:0,gunSide:0,gunWait:0,missileWait:0,
     pause:0,flash:0,contact:null,target:null,tracking:null,lock:0,lead:null,gunAssist:false,gunImpact:null,threat:false,incoming:null,hostileWait:1.5,evadeTime:0,destruction:null,result:null,
     last:position(f),enemies:[],shots:[],bursts:[],smoke:[],events:[]};
   addWave(state,f);return state;
