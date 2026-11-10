@@ -43,8 +43,8 @@ function addWave(state,f){
   });
   state.guide=state.enemies[0];
 }
-export function startCombat(f){
-  const state={wave:1,score:0,shield:100,ammo:MAX_MISSILES,elapsed:0,gunSide:0,gunWait:0,missileWait:0,
+export function startCombat(f,{waves=FINAL_WAVE,awaitMissiles=false}={}){
+  const state={wave:1,waves,awaitMissiles,victory:false,score:0,shield:100,ammo:MAX_MISSILES,elapsed:0,gunSide:0,gunWait:0,missileWait:0,
     pause:0,flash:0,contact:null,target:null,tracking:null,lock:0,lead:null,gunAssist:false,gunImpact:null,threat:false,incoming:null,hostileWait:1.5,evadeTime:0,destruction:null,result:null,
     last:position(f),enemies:[],shots:[],bursts:[],smoke:[],events:[]};
   addWave(state,f);return state;
@@ -304,7 +304,10 @@ export function advanceCombat(state,f,input,dt,groundAt=()=>0){
   if(state.enemies.every(e=>e.hp===0)){
     state.pause+=dt;state.target=null;state.lead=null;state.gunAssist=false;
     if(state.pause>=2.2){
-      if(state.wave===FINAL_WAVE){state.result='作戦完了｜すべてのドローンを撃墜';return;}
+      if(state.wave===state.waves){
+        if(state.awaitMissiles&&state.shots.some(s=>s.kind==='missile'||s.kind==='enemyMissile'))return;
+        state.victory=true;state.result='作戦完了｜すべてのドローンを撃墜';return;
+      }
       state.wave++;state.pause=0;state.ammo=MAX_MISSILES;state.shield=Math.min(100,state.shield+12);addWave(state,f);
     }
   }
