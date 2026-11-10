@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {heightAt} from './world.js';
+import {carrierSurfaces} from './carrier.js';
 import {clamp} from './physics.js?v=counterfire';
 import {makeJetStencil,sampleJetStencil,loadJetOcclusion} from './jet-finish.js?v=mirror-canopy';
 
@@ -150,6 +151,10 @@ export async function createLite(hardware){
   const attachments=readHardware(hardware);
   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{alpha:false});
   const terrain=landMesh(),surface=paintedSurface(),objects=buildings();
+  const ship=carrierSurfaces().map(layer=>layer.map(face=>{
+    const [a,b,c]=face.points.map(p=>new T.Vector3(...p));
+    return {...face,origin:a,normal:b.sub(a).cross(c.sub(a))};
+  }));
   let width=1,height=1, ratio=1;
   let camera, focal, inverse=new T.Quaternion();
   const n=new T.Vector3(),direction=new T.Vector3(), local=new T.Vector3(), normalMatrix=new T.Matrix3();
@@ -225,7 +230,7 @@ export async function createLite(hardware){
       ctx.fillStyle=cloud;ctx.fillRect(-r,-r,r*2,r*2);ctx.restore();
     }
   }
-  function render(cam,airframe,flight,time){
+  function render(cam,airframe,flight,time,atCarrier,floor){
     camera=cam;inverse.copy(cam.quaternion).invert();focal=height*.5/Math.tan(cam.fov*Math.PI/360);
     landscape(cam,time);
     const ground=[];
@@ -235,7 +240,15 @@ export async function createLite(hardware){
     for(const face of surface)project(face.points.map(p=>view(...p)),face.color,features);
     for(const face of objects)project(face.points.map(p=>view(...p)),face.color,features);
     paint(features);
-    const floor=heightAt(flight.x,flight.z);
+    if(atCarrier){
+      for(const layer of ship){
+        const panels=[];
+        for(const {points,color,origin,normal} of layer){
+          if(n.copy(camera.position).sub(origin).dot(normal)>0)project(points.map(p=>view(...p)),color,panels);
+        }
+        paint(panels);
+      }
+    }
     if(flight.y-floor<115){
       const q=view(flight.x+(flight.y-floor)*.19,floor+.06,flight.z+(flight.y-floor)*.19);
       if(q[2]>.6){

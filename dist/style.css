@@ -133,3 +133,7 @@ body.combat #gear-state{display:none}
   user-select:none;
   -webkit-touch-callout:none;
 }
+
+.carrier-entry{margin-top:8px}
+.carrier-entry button{background:#112731ce;border-color:#92c4c693;color:#eef5e8;min-height:44px}
+.carrier-entry small{font-size:8px;letter-spacing:.12em;color:#b6d9d8;margin-right:11px}

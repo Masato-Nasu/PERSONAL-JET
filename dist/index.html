@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <meta name="description" content="オリジナルの飛行翼で、海上のドローンを機関銃とミサイルで迎撃する3Dシューティング。">
 <title>FIGHTER JET — Coastal Intercept</title>
-<link rel="stylesheet" href="style.css?v=touch-hold">
+<link rel="stylesheet" href="style.css?v=carrier-deck">
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 </head>
 <body>
@@ -23,6 +23,7 @@
 <h1>FIGHTER<br><em>JET</em></h1>
 <p>海岸線の上空で敵機を迎撃。<br>敵機のミサイルをループでかわし、<br>機関銃とミサイルで反撃する。</p>
 <div class="entry"><button id="combat-start" disabled>シューティング <span>↗</span></button><button id="start" disabled>自由飛行</button><button id="demo" disabled>自動デモ <span>▷</span></button></div>
+<div class="entry carrier-entry"><button id="carrier-start" disabled><small>02 / CARRIER DECK</small>空母発着 <span>↗</span></button></div>
 <div id="load" role="status">機体を読み込み中…</div>
 </section>
 <footer><span>01 / COASTAL AIRFIELD</span><span>ORIGINAL AIRFRAME BY MASATO NASU</span></footer>
@@ -60,7 +61,7 @@
 <div class="flighthelp" id="manual-help">W / S 推力　↑ 下降　↓ 上昇　← / → 旋回　SPACE ブレーキ</div>
 </section>
 <noscript>このフライトゲームにはJavaScriptが必要です。</noscript>
-<script type="module" src="app.js?v=missile-marker"></script>
+<script type="module" src="app.js?v=carrier-deck"></script>
 <script>
 if('serviceWorker' in navigator){
   const worker=navigator.serviceWorker;

@@ -12,7 +12,8 @@ export function initialFlight() {
   return {x: 0, y: runway.level + extendedRide, z: startZ, heading: 0, pitch: 0, bank: 0, speed: 0,
     throttle: 0, vertical: 0, phase: 'ground', hasFlown: false, landing: null, gear: 1, departure: true};
 }
-export const onRunway = (x, z) => Math.abs(x) < runway.halfWidth && Math.abs(z) < runway.halfLength;
+export const onRunway = (x,z,surface=runway) => Math.abs(x-(surface.x??0))<surface.halfWidth
+  && Math.abs(z-(surface.z??0))<surface.halfLength;
 export function startManeuver(flight,action,groundAt) {
   if(flight.phase!=='air'||flight.maneuver)return false;
   const clearance=flight.y-groundAt(flight.x,flight.z)-rideHeight(flight);
@@ -69,11 +70,14 @@ function advanceManeuver(flight,dt,groundAt) {
   }
 }
 
-export function advance(flight, input, dt, groundAt) {
+export function advance(flight, input, dt, groundAt, surface=runway) {
   if (flight.phase === 'crashed' || flight.phase === 'complete') return;
   const clearance=flight.y-groundAt(flight.x,flight.z)-rideHeight(flight);
   if(flight.departure&&clearance>16)flight.departure=false;
-  const approachRunway=clearance<58&&Math.abs(flight.x)<95&&Math.abs(flight.z)<runway.halfLength+850
+  const deck=surface.carrier;
+  const relativeX=flight.x-(surface.x??0),relativeZ=flight.z-(surface.z??0);
+  const approachRunway=clearance<58&&Math.abs(relativeX)<(deck?76:95)&&Math.abs(relativeZ)<surface.halfLength+850
+    &&(!deck||Math.cos(flight.heading)>.9)
     &&Math.abs(Math.sin(flight.heading))<.34&&Math.abs(flight.bank)<.5&&flight.vertical<1&&flight.speed<82;
   const gearDown=!input.combat&&(flight.phase!=='air'||flight.departure||(!flight.maneuver&&approachRunway));
   flight.gear=clamp(flight.gear+(gearDown?1:-1)*dt/1.15,0,1);
@@ -96,8 +100,12 @@ export function advance(flight, input, dt, groundAt) {
   const drag = airborne
     ? (combat?.00072:.00105)*flight.speed**2 + (combat?2.2*(1-Math.cos(flight.bank))+.5*Math.abs(pitch):0)
     : .68 + .0007 * flight.speed ** 2;
-  const thrust = (combat?10.8:8.6) * flight.throttle;
-  const acceleration = thrust - drag - (airborne ? 9.81 * Math.sin(flight.pitch) : 0) - (!airborne && braking ? 7 : 0);
+  const catapult=deck&&!airborne&&!landing&&!braking&&flight.throttle>=.8&&Math.abs(relativeX)<3
+    &&Math.cos(flight.heading)>.995&&relativeZ>15&&flight.speed<45?12:0;
+  const arrest=deck&&landing;
+  const thrust=arrest?0:(combat?10.8:8.6)*flight.throttle+catapult;
+  const brakeForce=arrest?28:!airborne&&braking?7:0;
+  const acceleration=thrust-drag-(airborne?9.81*Math.sin(flight.pitch):0)-brakeForce;
   flight.speed = clamp(flight.speed + acceleration * dt, 0, 119);
   const ground = groundAt(flight.x, flight.z);
   if (!airborne && flight.phase === 'ground' && flight.speed > 36 && flight.pitch > .052) {
@@ -115,16 +123,22 @@ export function advance(flight, input, dt, groundAt) {
     flight.vertical = approach(flight.vertical, Math.sin(flight.pitch) * flight.speed - sink, 1.8, dt);
     flight.y += flight.vertical * dt;
     if (flight.y - rideHeight(flight) <= nextGround) {
-      const safe = onRunway(flight.x, flight.z) && Math.abs(Math.sin(flight.heading)) < .26
-        && Math.abs(flight.bank) < .27 && flight.vertical > -6 && flight.pitch > -.12 && flight.speed < 80;
+      const onLandingDeck=!deck||(Math.cos(flight.heading)>.95&&flight.gear>.8&&relativeZ>-16
+        &&(ground>=surface.level||flight.y-rideHeight(flight)>=surface.level-.5));
+      const safe=onLandingDeck&&onRunway(flight.x,flight.z,surface)&&Math.abs(Math.sin(flight.heading))<.26
+        && Math.abs(flight.bank)<.27&&flight.vertical>-6&&flight.pitch>-.12&&flight.speed<80;
       flight.phase = safe ? 'landing' : 'crashed';
       flight.y = nextGround + rideHeight(flight);
-      if (safe) flight.landing = {sink: -flight.vertical, speed: flight.speed};
+      if(safe){
+        flight.landing={sink:-flight.vertical,speed:flight.speed};
+        if(deck)flight.throttle=0;
+      }
     }
     return;
   }
   flight.y = nextGround + rideHeight(flight);
-  if (flight.speed > 7 && (Math.abs(nextGround - ground) > 1 || nextGround < 1.5 || (flight.speed > 28 && !onRunway(flight.x, flight.z)))) {
+  if((deck&&nextGround<surface.level)||(flight.speed>7&&(Math.abs(nextGround-ground)>1
+    ||nextGround<1.5||(flight.speed>28&&!onRunway(flight.x,flight.z,surface))))){
     flight.phase = 'crashed';
   } else if (flight.phase === 'landing' && flight.speed < 1.2) {
     flight.phase = 'complete';

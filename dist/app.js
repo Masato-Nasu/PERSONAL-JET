@@ -1,8 +1,9 @@
 import * as T from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
-import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=hold-heading';
+import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=carrier-deck';
 import {createWorld,heightAt} from './world.js';
-import {createLite} from './lite.js?v=wing-guns';
+import {carrierDeck,carrierSurfaces,deckHeight,initialCarrierFlight} from './carrier.js';
+import {createLite} from './lite.js?v=carrier-deck';
 import {initialCombatFlight,startCombat,advanceCombat} from './combat.js?v=missile-trail';
 import {combatView} from './combat-view.js?v=missile-marker';
 import {jetFinishMaterial,loadJetOcclusion} from './jet-finish.js?v=mirror-canopy';
@@ -11,7 +12,7 @@ import {createJetHardware} from './jet-hardware.js?v=wing-guns';
 import {cockpitEye,cockpitFov,paintCockpit} from './cockpit-view.js';
 
 const el=id=>document.getElementById(id);
-const buttons={combat:el('combat-start'),gun:el('gun'),missile:el('missile'),start:el('start'),demo:el('demo'),camera:el('camera'),reset:el('reset'),home:el('home'),brake:el('brake')};
+const buttons={combat:el('combat-start'),gun:el('gun'),missile:el('missile'),start:el('start'),carrier:el('carrier-start'),demo:el('demo'),camera:el('camera'),reset:el('reset'),home:el('home'),brake:el('brake')};
 const power=el('power'), stick=el('stick'), mapCanvas=el('map').querySelector('canvas');
 const map=mapCanvas.getContext('2d');
 const keys=new Set(), touch={x:0,y:0,id:null,brake:null,press:null,lastTap:null};
@@ -29,10 +30,30 @@ const yAxis=new T.Vector3(0,1,0);
 const chaseProjection=new T.Vector3();
 const modelPosition=new T.Vector3(), eye=new T.Vector3(), focus=new T.Vector3(), desired=new T.Vector3();
 let renderWorld, renderer, lite, mode='intro', flight=initialFlight(), loaded=false, cockpit=false, elapsed=0;
-let audio, lastText='', lastHud=0, chaseRollScreen=null;
+let audio, lastText='', lastHud=0, chaseRollScreen=null, carrierMesh;
+const carrierGround=(x,z)=>Math.max(heightAt(x,z),deckHeight(x,z));
+const groundAt=(x,z)=>mode==='carrier'?carrierGround(x,z):heightAt(x,z);
+const isPiloting=()=>mode==='manual'||mode==='combat'||mode==='carrier';
 const mobile=navigator.maxTouchPoints>0||matchMedia('(any-pointer: coarse)').matches;
 let viewWidth=innerWidth,viewHeight=innerHeight, portraitIntro=false;
 
+function addCarrier(){
+  const positions=[],colors=[],color=new T.Color();
+  for(const {points,color:paint} of carrierSurfaces().flat()){
+    color.set(paint);
+    for(let i=1;i<points.length-1;i++){
+      for(const point of [points[0],points[i],points[i+1]]){
+        positions.push(...point);colors.push(color.r,color.g,color.b);
+      }
+    }
+  }
+  const geometry=new T.BufferGeometry();
+  geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
+  geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+  geometry.computeVertexNormals();
+  const ship=new T.Mesh(geometry,new T.MeshStandardMaterial({vertexColors:true,roughness:.86}));
+  ship.visible=false;scene.add(ship);return ship;
+}
 function addShadow(){
   const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
   const c=canvas.getContext('2d');
@@ -176,8 +197,9 @@ function setCockpit(value){
 function begin(next){
   if(!loaded&&next!=='intro')return;
   keys.clear();resetTouch();setCockpit(false);elapsed=0;mode=next;maneuverNotice=null;
-  const isCombat=next==='combat', canPilot=next==='manual'||isCombat;
-  flight=isCombat?initialCombatFlight(initialFlight()):initialFlight();
+  const isCombat=next==='combat', isCarrier=next==='carrier', canPilot=isPiloting();
+  flight=isCombat?initialCombatFlight(initialFlight()):isCarrier?initialCarrierFlight():initialFlight();
+  if(carrierMesh)carrierMesh.visible=isCarrier;
   chaseRollScreen=null;
   battle=isCombat?startCombat(flight):null;
   document.body.classList.toggle('playing',next!=='intro');
@@ -186,12 +208,13 @@ function begin(next){
   el('intro').hidden=next!=='intro';el('flight').hidden=next==='intro';
   el('combat-view').hidden=!isCombat;el('combat-info').hidden=!isCombat;el('weapons').hidden=!isCombat;
   buttons.camera.disabled=false;buttons.gun.disabled=false;buttons.missile.disabled=false;
-  throttleAvailable(canPilot);stick.hidden=!canPilot;buttons.brake.hidden=next!=='manual';
+  throttleAvailable(canPilot);stick.hidden=!canPilot;buttons.brake.hidden=next!=='manual'&&!isCarrier;
   el('manual-help').hidden=next==='demo';
   el('manual-help').textContent=isCombat?'SPACE 機関銃　X ミサイル　矢印キー 操縦　W / S 推力':'W / S 推力　↑ 下降　↓ 上昇　← / → 旋回　SPACE ブレーキ';
   updateThrottle();lastHud=0;resize();
-  el('map-title').textContent=isCombat?'RADAR / 1.5 KM':'COASTAL / 36';
-  mapCanvas.setAttribute('aria-label',isCombat?'敵機の位置を表示するレーダー':'滑走路の位置と機首方位');
+  el('map-title').textContent=isCombat?'RADAR / 1.5 KM':isCarrier?'CARRIER / 00':'COASTAL / 36';
+  mapCanvas.setAttribute('aria-label',isCombat?'敵機の位置を表示するレーダー':isCarrier?'空母と機体の位置':'滑走路の位置と機首方位');
+  buttons.reset.title=isCarrier?'空母の甲板に戻る (R)':'滑走路に戻る (R)';
   if(next!=='intro')startAudio();
 }
 function radarFrame(){
@@ -222,7 +245,8 @@ function radarFrame(){
 }
 function mapFrame(){
   if(battle){radarFrame();return;}
-  const size=144, center=72, scale=.0304;
+  const size=144, center=72, scale=.0304, isCarrier=mode==='carrier';
+  const originX=isCarrier?carrierDeck.x:0,originZ=isCarrier?carrierDeck.z:0;
   map.clearRect(0,0,size,size);
   map.fillStyle='#183444';map.fillRect(0,0,size,size);
   map.strokeStyle='#8ba4a42b';map.lineWidth=.7;
@@ -232,11 +256,13 @@ function mapFrame(){
   for(let i=0;i<=100;i++){
     const theta=i/100*Math.PI*2;
     const z=Math.sin(theta)*1700,x=150+Math.cos(theta)*990+145*Math.sin(z/550);
-    if(i===0)map.moveTo(x*scale,z*scale);else map.lineTo(x*scale,z*scale);
+    if(i===0)map.moveTo((x-originX)*scale,(z-originZ)*scale);else map.lineTo((x-originX)*scale,(z-originZ)*scale);
   }
   map.closePath();map.fillStyle='#677655';map.fill();map.strokeStyle='#b3ad7e';map.stroke();
-  map.strokeStyle='#f2d7a4';map.lineWidth=2;map.beginPath();map.moveTo(0,-runway.halfLength*scale);map.lineTo(0,runway.halfLength*scale);map.stroke();
-  const x=clamp(flight.x*scale,-64,64),z=clamp(flight.z*scale,-64,64);
+  const surface=isCarrier?carrierDeck:runway;
+  map.strokeStyle='#f2d7a4';map.lineWidth=isCarrier?4:2;map.beginPath();
+  map.moveTo(0,-surface.halfLength*scale);map.lineTo(0,surface.halfLength*scale);map.stroke();
+  const x=clamp((flight.x-originX)*scale,-64,64),z=clamp((flight.z-originZ)*scale,-64,64);
   map.translate(x,z);map.rotate(flight.heading);map.fillStyle='#ffda96';map.strokeStyle='#1b241e';map.lineWidth=1.25;
   map.beginPath();map.moveTo(0,-7);map.lineTo(5,5);map.lineTo(0,2.3);map.lineTo(-5,5);map.closePath();map.fill();map.stroke();map.restore();
   map.fillStyle='#e0d3b4';map.font='10px Helvetica';map.fillText('N',5,12);
@@ -276,6 +302,7 @@ function statusText(){
     }
     return 'レーダーで敵機の位置を確認';
   }
+  if(mode==='carrier')return carrierStatus();
   if(flight.phase==='crashed')return '機体が地面に接触しました。「再開」で滑走路に戻れます。';
   if(flight.phase==='complete')return mode==='demo'?'デモ飛行完了｜「終了」から手動操縦を選べます。':'着陸成功｜滑走路上に停止しました。';
   if(flight.phase==='landing')return mode==='demo'?'デモ飛行｜着陸・減速中':'接地しました。推力を絞ってブレーキ。';
@@ -290,10 +317,34 @@ function statusText(){
   if(altitude<40&&flight.speed<41)return '速度低下｜推力を上げる';
   return '飛行中｜滑走路 36 / 18 どちらからでも進入できます';
 }
+function carrierStatus(){
+  const {phase,throttle,speed,x,y,z,heading,gear}=flight;
+  if(phase==='crashed')return '発着失敗｜「再開」で空母の甲板へ';
+  if(phase==='complete')return '着艦成功｜空母の甲板上に停止しました';
+  if(phase==='landing')return '着艦ワイヤー捕捉｜甲板上で減速中';
+  if(phase==='ground'){
+    if(throttle<.8)return '空母から発艦｜推力を80%以上に上げる';
+    return speed<31?'カタパルト加速｜「↓ 上昇」を押し続ける':'「↓ 上昇」を押し続けて発艦';
+  }
+  const dx=carrierDeck.x-x,dz=z-carrierDeck.z;
+  const range=Math.hypot(dx,dz);
+  if(dz>130&&dz<1000&&Math.abs(dx)<110&&Math.cos(heading)>.92){
+    const aboveDeck=y-carrierDeck.level-rideHeight(flight);
+    const feet=Math.max(0,Math.round(aboveDeck*3.28084));
+    const glideHeight=(dz-70)*.055;
+    const steer=Math.abs(dx)>9?'中央線へ'+(dx>0?'右':'左'):'方位000°を維持';
+    const descent=aboveDeck>glideHeight+4?'高度を下げる':aboveDeck<glideHeight-4?'降下を緩める':'そのまま降下';
+    const tip=speed>78?'推力を絞る':speed<47?'推力を上げる':gear<.8&&aboveDeck<45?'脚の展開を待つ':descent;
+    return '着艦進入 '+Math.round(dz-130)+' m｜甲板上 '+feet+' ft｜'+steer+'・'+tip;
+  }
+  const bearing=Math.round(Math.atan2(dx,dz)*180/Math.PI);
+  const hdg=String((bearing+360)%360).padStart(3,'0');
+  return '空母 '+Math.round(range)+' m / 方位 '+hdg+'°｜艦尾から方位000°で進入';
+}
 function hud(time){
   if(time-lastHud<.12)return;
   lastHud=time;
-  const height=Math.max(0,flight.y-rideHeight(flight)-heightAt(flight.x,flight.z));
+  const height=Math.max(0,flight.y-rideHeight(flight)-groundAt(flight.x,flight.z));
   el('speed').textContent=String(Math.round(flight.speed*1.94384)).padStart(3,'0');
   el('status').classList.toggle('missile-alert',!!battle?.incoming&&!battle.result);
   el('gear-state').textContent=flight.gear>=.985?'GEAR DOWN':flight.gear<=.015?'GEAR UP':'GEAR MOVING';
@@ -319,9 +370,9 @@ function controls(dt){
   if(keys.has('KeyS'))flight.throttle=clamp(flight.throttle-dt*.67,0,1);
   const pitch=clamp(Number(keys.has('ArrowDown'))-Number(keys.has('ArrowUp'))+touch.y,-1,1);
   const roll=clamp(Number(keys.has('ArrowRight'))-Number(keys.has('ArrowLeft'))+touch.x,-1,1);
-  const braking=mode==='manual'&&(keys.has('Space')||touch.brake!==null);
+  const braking=(mode==='manual'||mode==='carrier')&&(keys.has('Space')||touch.brake!==null);
   const maneuver=flight.maneuver;
-  advance(flight,{pitch,roll,braking,combat:!!battle},dt,heightAt);
+  advance(flight,{pitch,roll,braking,combat:!!battle},dt,groundAt,mode==='carrier'?carrierDeck:runway);
   if(flight.phase!=='air')chaseRollScreen=null;
   else if(maneuver?.chase&&chaseRollScreen!==null){
     // The lateral travel and bank use the same maneuver progress.
@@ -346,7 +397,7 @@ function controls(dt){
 function visual(shadow,time,dt){
   const displayed=mode==='intro'?showcase:flight;
   const {x,y,z,heading,pitch,bank,phase}=displayed;
-  const terrainHeight=heightAt(x,z);
+  const terrainHeight=groundAt(x,z);
   const lift=y-terrainHeight-rideHeight(displayed);
   modelPosition.set(x,y,z);
   airframe.position.copy(modelPosition);
@@ -374,7 +425,7 @@ function visual(shadow,time,dt){
     desired.set(chaseX,grounded?3.7:5.4,Math.max(grounded?13.5:15.6,framingDistance)).applyQuaternion(headingRotation).add(modelPosition);
     if(camera.position.distanceTo(desired)>29||battle?.destruction?.age<.08)camera.position.copy(desired);
     camera.position.lerp(desired,1-Math.exp(-5.6*dt));
-    if(phase==='air'&&(mode==='manual'||mode==='combat')){
+    if(phase==='air'&&isPiloting()){
       // Follow across the new flight line immediately so the camera cannot swing back as it catches up.
       const rightX=Math.cos(heading),rightZ=Math.sin(heading);
       const correction=(desired.x-camera.position.x)*rightX+(desired.z-camera.position.z)*rightZ;
@@ -394,7 +445,7 @@ function visual(shadow,time,dt){
     }
   }
   if(renderer){renderWorld(camera,time);renderer.render(scene,camera);}
-  else lite.render(camera,airframe,displayed,time);
+  else lite.render(camera,airframe,displayed,time,mode==='carrier',terrainHeight);
   if(battle)effects.render(camera,flight,battle);
 }
 function updateStick(x,y,radius){
@@ -425,7 +476,7 @@ function maneuverLabel(action){
 }
 function triggerManeuver(action){
   if(!action||flight.phase!=='air'||flight.maneuver||battle?.result)return;
-  if(startManeuver(flight,action,heightAt)){
+  if(startManeuver(flight,action,groundAt)){
     if(action!=='loop'&&!cockpit){
       if(chaseRollScreen===null){
         camera.updateMatrixWorld();
@@ -455,7 +506,7 @@ function releaseStick(event){
   triggerManeuver(press.direction);
 }
 function buttonEvents(){
-  buttons.combat.onclick=()=>begin('combat');buttons.start.onclick=()=>begin('manual');buttons.demo.onclick=()=>begin('demo');
+  buttons.combat.onclick=()=>begin('combat');buttons.start.onclick=()=>begin('manual');buttons.carrier.onclick=()=>begin('carrier');buttons.demo.onclick=()=>begin('demo');
   buttons.camera.onclick=()=>{if(!battle?.destruction)setCockpit(!cockpit);};buttons.reset.onclick=()=>begin(mode);buttons.home.onclick=()=>begin('intro');
   const track=power.querySelector('.power-track');
   let throttlePointer=null;
@@ -507,7 +558,7 @@ function buttonEvents(){
     });
   }
   stick.addEventListener('pointerdown',event=>{
-    if((mode!=='manual'&&mode!=='combat')||touch.id!==null||event.button!==0)return;
+    if(!isPiloting()||touch.id!==null||event.button!==0)return;
     event.preventDefault();
     touch.id=event.pointerId;
     touch.press={direction:tapDirection(event),x:event.clientX,y:event.clientY,time:event.timeStamp,dragged:false};
@@ -558,6 +609,7 @@ async function setup(){
     renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.03;
     el('view').append(canvas);
     renderWorld=createWorld(scene,renderer);
+    carrierMesh=addCarrier();
     scene.add(airframe);
   }else{
     lite=await createLite(hardware.group);
@@ -587,7 +639,7 @@ async function setup(){
     const time=milliseconds/1000, dt=clamp((milliseconds-last)/1000,0,.25);last=milliseconds;
     if(mode==='demo'){
       elapsed=Math.min(demoDuration,elapsed+dt);flight=demoFlight(elapsed);
-    }else if(mode==='manual'||mode==='combat'){
+    }else if(isPiloting()){
       accumulator+=dt;
       while(accumulator>=1/90){controls(1/90);accumulator-=1/90;}
     }
@@ -597,7 +649,7 @@ async function setup(){
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
-  loaded=true;buttons.combat.disabled=false;buttons.start.disabled=false;buttons.demo.disabled=false;el('load').textContent='';
+  loaded=true;buttons.combat.disabled=false;buttons.start.disabled=false;buttons.carrier.disabled=false;buttons.demo.disabled=false;el('load').textContent='';
 }
 setup().catch(error=>{
   console.error(error);
