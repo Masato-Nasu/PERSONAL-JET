@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
-import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=side-roll';
+import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=travel-roll';
 import {createWorld,heightAt} from './world.js';
 import {createLite} from './lite.js?v=wing-guns';
 import {initialCombatFlight,startCombat,advanceCombat} from './combat.js?v=missile-trail';
@@ -321,21 +321,13 @@ function controls(dt){
   const roll=clamp(Number(keys.has('ArrowRight'))-Number(keys.has('ArrowLeft'))+touch.x,-1,1);
   const braking=mode==='manual'&&(keys.has('Space')||touch.brake!==null);
   const maneuver=flight.maneuver;
-  const side=maneuver?.action==='right'?1:maneuver?.action==='left'?-1:0;
-  const previousAngle=maneuver?.angle??0;
-  const {x,z}=flight;
   advance(flight,{pitch,roll,braking,combat:!!battle},dt,heightAt);
-  if(side){
-    const fraction=(maneuver.angle-previousAngle)/(2*Math.PI);
-    if(chaseRollScreen!==null)chaseRollScreen=clamp(chaseRollScreen+side*.23*fraction,-.38,.38);
-    if(!cockpit){
-      // Carry the camera sideways with the jet so chase lag cannot pull it back across the frame.
-      const rightX=Math.cos(flight.heading),rightZ=Math.sin(flight.heading);
-      const shift=(flight.x-x)*rightX+(flight.z-z)*rightZ;
-      camera.position.x+=rightX*shift;
-      camera.position.z+=rightZ*shift;
-    }
-  }else if(flight.phase!=='air')chaseRollScreen=null;
+  if(flight.phase!=='air')chaseRollScreen=null;
+  else if(maneuver?.chase&&chaseRollScreen!==null){
+    // The lateral travel and bank use the same maneuver progress.
+    const {from,to}=maneuver.chase;
+    chaseRollScreen=from+(to-from)*maneuver.angle/(2*Math.PI);
+  }
   if(battle){
     advanceCombat(battle,flight,{gun:keys.has('Space')||weapons.gun||weapons.gunTap,
       missile:keys.has('KeyX')||weapons.missile||weapons.missileTap},dt,heightAt);
@@ -427,9 +419,14 @@ function maneuverLabel(action){
 function triggerManeuver(action){
   if(!action||flight.phase!=='air'||flight.maneuver||battle?.result)return;
   if(startManeuver(flight,action,heightAt)){
-    if(action!=='loop'&&!cockpit&&chaseRollScreen===null){
-      camera.updateMatrixWorld();
-      chaseRollScreen=clamp(chaseProjection.copy(modelPosition).project(camera).x,-.38,.38);
+    if(action!=='loop'&&!cockpit){
+      if(chaseRollScreen===null){
+        camera.updateMatrixWorld();
+        chaseRollScreen=clamp(chaseProjection.copy(modelPosition).project(camera).x,-.52,.52);
+      }
+      const side=action==='right'?1:-1;
+      const from=chaseRollScreen;
+      flight.maneuver.chase={from,to:clamp(from+side*.69,-.52,.52)};
     }
     maneuverNotice={text:maneuverLabel(action)+'完了',until:performance.now()+(action==='loop'?6400:2800)};
   }else{

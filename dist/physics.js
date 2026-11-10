@@ -6,7 +6,8 @@ export const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 const approach = (value, target, rate, dt) => value + (target - value) * (1 - Math.exp(-rate * dt));
 const rad = Math.PI / 180;
 const startZ = 545;
-const rollDuration = 1.18;
+const rollDuration = 1.55;
+const rollTravelSeconds = .72;
 export function initialFlight() {
   return {x: 0, y: runway.level + extendedRide, z: startZ, heading: 0, pitch: 0, bank: 0, speed: 0,
     throttle: 0, vertical: 0, phase: 'ground', hasFlown: false, landing: null, gear: 1, departure: true};
@@ -48,7 +49,8 @@ function advanceManeuver(flight,dt,groundAt) {
     flight.pitch=maneuver.pitch*(1-progress);
     flight.vertical=approach(flight.vertical,0,4,dt);
     const forward=flight.speed*Math.cos(flight.pitch)*dt;
-    const lateral=side*maneuver.speed*.48*(progress-previous);
+    // Move to a parallel flight line as the jet rolls.
+    const lateral=side*maneuver.speed*rollTravelSeconds*(progress-previous);
     const sinHeading=Math.sin(flight.heading),cosHeading=Math.cos(flight.heading);
     flight.x+=sinHeading*forward+cosHeading*lateral;
     flight.z+=sinHeading*lateral-cosHeading*forward;
