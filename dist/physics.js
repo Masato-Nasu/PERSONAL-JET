@@ -84,8 +84,10 @@ export function advance(flight, input, dt, groundAt) {
   const {pitch, roll, braking, combat=false} = input;
   const airborne = flight.phase === 'air';
   const landing = flight.phase === 'landing';
+  // Wings level smoothly after release while the new heading is held.
+  const turnBank = roll > 0 ? Math.max(0, flight.bank) : roll < 0 ? Math.min(0, flight.bank) : 0;
   const headingRate = airborne
-    ? Math.tan(flight.bank) * 9.81 / Math.max(24, flight.speed) * 1.55
+    ? Math.tan(turnBank) * 9.81 / Math.max(24, flight.speed) * 1.55
     : roll * Math.min(flight.speed / 26, 1) * .55;
   flight.heading += headingRate * dt;
   flight.bank = approach(flight.bank, airborne ? roll * (combat?66:49) * rad : 0, 2.4, dt);
