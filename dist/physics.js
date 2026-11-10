@@ -140,7 +140,7 @@ export function advance(flight, input, dt, groundAt, surface=runway) {
   if((deck&&nextGround<surface.level)||(flight.speed>7&&(Math.abs(nextGround-ground)>1
     ||nextGround<1.5||(flight.speed>28&&!onRunway(flight.x,flight.z,surface))))){
     flight.phase = 'crashed';
-  } else if (flight.phase === 'landing' && flight.speed < 1.2) {
+  } else if (flight.phase === 'landing' && flight.speed < (deck?.001:1.2)) {
     flight.phase = 'complete';
   }
 }

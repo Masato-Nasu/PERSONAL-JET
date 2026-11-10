@@ -1,4 +1,4 @@
-import {initialFlight,rideHeight} from './physics.js?v=carrier-deck';
+import {initialFlight,rideHeight} from './physics.js?v=carrier-recovery';
 
 export const carrierDeck={x:-2450,z:580,level:19,halfWidth:13,halfLength:136,carrier:true};
 const deckOutline=[
