@@ -90,8 +90,9 @@ export function advance(flight, input, dt, groundAt, surface=runway) {
   const landing = flight.phase === 'landing';
   // Wings level smoothly after release while the new heading is held.
   const turnBank = roll > 0 ? Math.max(0, flight.bank) : roll < 0 ? Math.min(0, flight.bank) : 0;
+  const turnBoost = 1 + .65 * smooth(.45, 1, Math.abs(roll));
   const headingRate = airborne
-    ? Math.tan(turnBank) * 9.81 / Math.max(24, flight.speed) * 1.55
+    ? Math.tan(turnBank) * 9.81 / Math.max(24, flight.speed) * 1.55 * turnBoost
     : roll * Math.min(flight.speed / 26, 1) * .55;
   flight.heading += headingRate * dt;
   flight.bank = approach(flight.bank, airborne ? roll * (combat?66:49) * rad : 0, 2.4, dt);

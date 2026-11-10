@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
-import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=carrier-recovery';
+import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,startManeuver} from './physics.js?v=tighter-turns';
 import {createWorld,heightAt} from './world.js';
 import {carrierDeck,carrierSurfaces,deckHeight,initialCarrierFlight} from './carrier.js';
 import {createLite} from './lite.js?v=carrier-deck';
