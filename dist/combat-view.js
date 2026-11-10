@@ -68,9 +68,9 @@ export function combatView(canvas){
     }
     ctx.restore();
   }
-  function renderMissile(s){
+  function renderMissile(s,nose){
     const end={x:s.p.x-s.dir.x*missileLength,y:s.p.y-s.dir.y*missileLength,z:s.p.z-s.dir.z*missileLength};
-    const nose=point(s.p),tail=point(end),visible=nose??tail;
+    const tail=point(end),visible=nose??tail;
     if(!visible)return;
     const thickness=Math.min(9,Math.max(1.4,.22*focal/visible.depth));
     const dx=nose&&tail?nose.x-tail.x:0,dy=nose&&tail?nose.y-tail.y:0;
@@ -102,6 +102,35 @@ export function combatView(canvas){
       ctx.strokeStyle='#454b50';ctx.lineWidth=1.2;ctx.stroke();
       ctx.fillStyle=s.exhaust>.5?'#fff1ca':'#e9e4d7';ctx.fill();
     }
+    ctx.restore();
+  }
+  function missileMarker(s,flight,nose){
+    const hostile=s.kind==='enemyMissile';
+    const color=hostile?'#ff8272':'#a7fff0';
+    if(nose&&nose.x>=8&&nose.x<=w-8&&nose.y>=8&&nose.y<=h-8){
+      const {x,y}=nose,r=hostile?7:6;
+      ctx.save();ctx.shadowColor='#15232c';ctx.shadowBlur=5;
+      stroke([[x-r,y],[x,y-r],[x+r,y],[x,y+r],[x-r,y]],color,1.25);
+      ctx.restore();
+      return;
+    }
+    // Camera-space direction also works for missiles that pass behind the aircraft.
+    const local=projected.set(s.p.x,s.p.y,s.p.z).applyMatrix4(camera.matrixWorldInverse);
+    const behind=local.z>=0;
+    const angle=behind&&Math.hypot(local.x,local.y)<local.z*.05
+      ?Math.PI*.5:Math.atan2(-local.y,local.x);
+    const dx=Math.cos(angle),dy=Math.sin(angle);
+    const radius=Math.min((w*.5-Math.min(60,w*.24))/Math.abs(dx),h*.22/Math.abs(dy));
+    const x=w*.5+dx*radius,y=h*.48+dy*radius;
+    const range=Math.round(Math.hypot(s.p.x-flight.x,s.p.y-flight.y,s.p.z-flight.z));
+    const label=(hostile?'敵ミサイル':'自機ミサイル')+(behind?' 後方':'')+' '+range+' m';
+    ctx.save();
+    ctx.shadowColor='#15232c';ctx.shadowBlur=6;
+    ctx.fillStyle=color;ctx.font='bold 11px Helvetica,sans-serif';ctx.textAlign='center';
+    const halfLabel=Math.min(w*.5,ctx.measureText(label).width*.5+4);
+    ctx.fillText(label,Math.max(halfLabel,Math.min(w-halfLabel,x)),y+18);
+    ctx.translate(x,y);ctx.rotate(angle);
+    polygon([[9,0],[-6,-5],[-2,0],[-6,5]],color);
     ctx.restore();
   }
   function renderSmoke(smoke){
@@ -204,14 +233,9 @@ export function combatView(canvas){
       Math.hypot(d.p.x-flight.x,d.p.y-flight.y,d.p.z-flight.z),state.lock);
     for(const s of state.shots){
       if(s.kind==='missile'||s.kind==='enemyMissile'){
-        renderMissile(s);
-        if(s===state.incoming){
-          const p=point(s.p);
-          if(p){
-            const r=7;
-            stroke([[p.x-r,p.y],[p.x,p.y-r],[p.x+r,p.y],[p.x,p.y+r],[p.x-r,p.y]],'#ff6355',1.5);
-          }
-        }
+        const nose=point(s.p);
+        renderMissile(s,nose);
+        if(!state.result)missileMarker(s,flight,nose);
         continue;
       }
       const p=point(s.p),last=point(s.last);if(!p||!last)continue;

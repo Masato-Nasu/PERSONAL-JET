@@ -4,7 +4,7 @@ import {advance,clamp,demoDuration,demoFlight,initialFlight,rideHeight,runway,st
 import {createWorld,heightAt} from './world.js';
 import {createLite} from './lite.js?v=wing-guns';
 import {initialCombatFlight,startCombat,advanceCombat} from './combat.js?v=missile-trail';
-import {combatView} from './combat-view.js?v=missile-trail';
+import {combatView} from './combat-view.js?v=missile-marker';
 import {jetFinishMaterial,loadJetOcclusion} from './jet-finish.js?v=mirror-canopy';
 
 import {createJetHardware} from './jet-hardware.js?v=wing-guns';
